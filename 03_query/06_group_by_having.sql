@@ -1,9 +1,9 @@
--- ============================================
+-- ===============================================
 -- Topic: GROUP BY & HAVING
 -- Description: Grouping rows, aggregating per group,
 --              filtering groups with HAVING,
---              GROUP BY vs WHERE
--- ============================================
+--              GROUP BY vs WHERE, GROUPING SETS, ROLLUP
+-- ===============================================
 
 
 -- Setup — reusing same table from 05_aggregate_functions.sql
@@ -35,7 +35,7 @@ VALUES
 
 
 
--- BASIC GROUP BY
+--⭐ ----- BASIC GROUP BY -----
 -- Count orders per status
 SELECT status, COUNT(*) AS total
 FROM orders
@@ -54,7 +54,7 @@ SELECT customer, product, COUNT(*) FROM orders GROUP BY customer; -- ❌
 
 
 
--- GROUP BY MULTIPLE COLUMNS
+--⭐ ----- GROUP BY MULTIPLE COLUMNS -----
 -- Revenue breakdown by category AND status
 SELECT
     status,
@@ -67,7 +67,7 @@ ORDER BY status;
 
 
 
--- HAVING — FILTER GROUPS
+--⭐ ----- HAVING — FILTER GROUPS -----
 -- Customers who placed more than 2 orders
 SELECT customer, COUNT(*) AS order_count
 FROM orders
@@ -83,7 +83,7 @@ ORDER BY total_revenue DESC;
 
 
 
--- WHERE vs HAVING
+--⭐ ----- WHERE vs HAVING -----
 -- WHERE: filters individual rows BEFORE grouping
 -- HAVING: filters groups AFTER aggregation
 
@@ -102,7 +102,7 @@ SELECT customer FROM orders WHERE COUNT(*) > 2 GROUP BY customer; -- ❌
 
 
 
--- COMBINING WITH ORDER BY
+--⭐ ----- COMBINING WITH ORDER BY -----
 -- Top spending customers (completed orders only)
 SELECT
     customer,
@@ -113,3 +113,34 @@ FROM orders
 WHERE status = 'completed'
 GROUP BY customer
 ORDER BY total_spent DESC;
+
+
+
+--⭐ ----- GROUPING SETS - MULTIPLE GROUPINGS IN ONE QUERY -----
+-- Instead of running separate GROUP BY queries and UNION-ing results,
+-- GROUPING SETS does it in a single pass
+
+SELECT category, status, SUM(amount) AS revenue
+FROM orders
+GROUP BY GROUPING SETS (
+    (category, status),     -- subtotal per category + status combination
+    (category),             -- subtotal per category only
+    (status),               -- subtotal per status only
+    ()                      -- grand total (empty grouping = all rows)
+)
+ORDER BY category NULLS LAST, status NULLS LAST;
+-- NULL in the result means "all values" for that column (i.e. the rolled-up level)
+
+
+
+--⭐ ----- ROLLUP -----
+--  shorthand for hierarchical subtotals (category -> grand total)
+SELECT category, status, SUM(amount) AS revenue
+FROM orders
+GROUP BY ROLLUP (category, status)
+ORDER BY category NULLS LAST, status NULLS LAST;
+
+
+
+-- CLEANUP
+-- DROP TABLE IF EXISTS orders;
